@@ -17,6 +17,7 @@ class ReservationsController extends Controller
 		$arguments = array("room_id"=>$roomId);
 		$arguments["selected_extras_cs"] = "";
 		$selected_extras = array();
+		
 		if(isset($_GET["room_extras"])){
 			$selected_extras = is_array($_GET["room_extras"]) ? $_GET["room_extras"] : array($_GET["room_extras"]);
 			$arguments["selected_extras"] = $selected_extras;

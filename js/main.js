@@ -1,13 +1,16 @@
+// suma N días a la fecha
 Date.prototype.addDays = function(days) {
 	var dat = new Date(this.valueOf());
   	dat.setDate(dat.getDate() + days);
   	return dat;
 }
 
+// Una vez el documento haya sido cargado:
 $(document).ready(function(){
 	
 	var dates;
 
+	// Calendario utilizado en el formulario de búsqueda
 	$('#mdp-demo').multiDatesPicker({
 		//mode: 'daysRange',
 		//autoselectRange: [0,1],
@@ -22,31 +25,39 @@ $(document).ready(function(){
 		}
 	});
 
+	// Calendario utilizado en el formulario de reservas
 	$('.datepicker').multiDatesPicker({minDate: 0, maxPicks:1,dateFormat: "yy-mm-dd"});
 
+	// Cuando se envíe el formulario de búsqueda interceptamos aquí el envío (GET) y 
+	// hacemos una llamada a la API utilizando ajax. 
 	$('#searchForm').submit(function(event) {				
 		var url = "/api/rooms";
+		// parámetros de formulario a un array 
 		var data = $(this).serializeArray();
-		console.dir(data);
+			
 		//console.dir(data);
-		//console.dir(data);
+		// Callback de la llamada Ajax en caso satisfactorio:
 		var success_callback = function(response){
 			//console.dir(response);
+			// Si la respuesta es correcta se muestra el resultado en la vista
 			buildRow(response,$('#checkin').val(), $('#checkout').val());
-		};	
+		};
+
+		// AJAX:
 		doAjaxCall(url,data,'GET',success_callback);
+		// Previene que el formulario se envíe y la página se recargue.
 		event.preventDefault();
 	});
 
+	// Cuando se envíe el formulario de reserva interceptamos aquí el envío y 
+	// haremos una llamada a la API utilizando ajax.
 	$('#reservationForm').submit(function(event) {				
 		var url = "/api/rooms";
 		var data = $(this).serializeArray();
-		console.dir(data);
-		//console.dir(data);
-		//console.dir(data);
+		//console.dir(data);		
 		var success_callback = function(response){
 			if(response.status === "Saved"){
-				
+				// Mensaje de confirmación
 				swal({
 				  	title: "Reserva Realizada",
 				  	text: "Su reserva <strong>ha sido realidada</strong>! <p>Su localizador:</p><p class='reservation-code'>827839484</p>",
@@ -59,27 +70,32 @@ $(document).ready(function(){
 				    	closeModal: false,
 					}				  
 				},function(){
+					// Lo que ocurrirá al pulsar el botón OK
 				  	window.location.replace("/site/index");
 				});				
 			}
-			console.dir(response);
+			//console.dir(response);
 			
 		};	
 		doAjaxCall(url,data,'POST',success_callback);
 		event.preventDefault();
 	});
 
+	// Clic en el botón de reservas (se usa la forma $.on() que es similar a live()
+	// ya que el botón es generado dinámicamente con ajax)
 	$('#hotels_list').on('click', "button.reservation", function(){		
 		var roomId = $(this).attr('id').replace("roomid_","");
-		var form = $(this).closest('form');
+		var form = $(this).closest('form'); // el formulario que contiene al botón
 		$(".extras input:checkbox:checked").each(function(index){			
 	      form.append($('<input type="hidden" name="room_extras[]">').val($(this).val()));
 	    });			    
-		$(this).closest('form').submit();
+		form.submit(); // se fuerza el submit (hacia el formulario de reserva)
 	});
 		
 });
 
+// Trozo de código feo que sin duda hay que mejorar.
+// Construye el HTML necesario para representar cada hotel en el listado.
 function buildRow(hotels, checkin, checkout) {
 	$('#hotels_list').empty();
 	$.each(hotels, function( index, value ) {
@@ -117,6 +133,7 @@ function buildRow(hotels, checkin, checkout) {
 	});	
 }      
 
+// función AJAX
 function doAjaxCall(url, data, type, success) {
 	//console.dir(data);       
     $.ajax({

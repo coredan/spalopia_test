@@ -1,10 +1,12 @@
 <?php
 
-// TODO: COMPROBAR QUE LO QUE FALLE AL GUARDAR EL FORMULARIO NO SEA EL POST O GET EQUIVOCADO (DEBERÍA SER POST)
-// http://local.webhotel.com/api/rooms
-// TODO: SEGUIR COMENTANDO Y PROBANDO
+/* Clase API rest. Todas los request a "/api" se redirigen aquí
+ *   GET: /api/form[?checkin=...][&checkout...]... Consultas
+ *
+ *   POST: /api/form[?checkin=...][&checkout...]... 
+ *     {json-data}                                  Reservas
+ */ 
 
-// Clase API rest. Todas los request a "/api" se redirigen aquí
 class ApiController extends Controller
 {
 	public function actionIndex()
@@ -226,44 +228,31 @@ class ApiController extends Controller
         // Añadiendo el resto de campos obligatorios
         // Generando codigo de reserva falso.
         $model->reservation_key = md5($model->client_name);
-        // $resp[] = array("room_id"=>$roomId);
-        // $resp[] = array("persons"=>$persons);
-        // $resp[] = array("checkin"=>$checkin);
-        // $resp[] = array("checkout"=>$checkout);
-
-        // Comprobando los extras
-        //if(isset($_POST["extras"])){
-            $extras = isset($_POST["extras"]) ? $_POST["extras"] : "";
-            //$resp[] = array("result"=>$extras);
-        //}
         
-        // test
-        //$this->_sendResponse(200, CJSON::encode($extras));
-
-
+        // Comprobando y estableciendo los extras 
+        $extras = isset($_POST["extras"]) ? $_POST["extras"] : "";        
         $model->extras = $extras;
-        // Calculando el precio total:
+        // Calculando y estableciendo el precio total:
         $res = $this->_calculatePrice($roomId, $persons, $checkin, $checkout, $extras);     
         $model->total = $res["total"];
 
         // Se almacena en BBDD y si no hay error se notifica a través de la respuesta:
         if($model->save()){
+            // respuesta OK
             $response = array("status"=>"Saved");
             $response["room"] = $model;
             $this->_sendResponse(200, CJSON::encode($response));
         } else {
-            // Errors occurred
-            $msg = "<h1>Error</h1>";
-            $msg .= sprintf("Couldn't create model <b>%s</b>", $_GET['model']);
-            $msg .= "<ul>";
+            // respuesta ERROR
+            $msg = array();
+            $msg["errors"] = array();
             foreach($model->errors as $attribute=>$attr_errors) {
-                $msg .= "<li>Attribute: $attribute</li>";
-                $msg .= "<ul>";
-                foreach($attr_errors as $attr_error)
-                    $msg .= "<li>$attr_error</li>";
-                $msg .= "</ul>";
-            }
-            $msg .= "</ul>";
+                $errors = array();
+                foreach($attr_errors as $attr_error) {
+                    $errors[] = $attr_error;
+                }
+                $msg["errors"][$attribute] = $errors;
+            }            
             $this->_sendResponse(500, $msg );
         }
     }
@@ -317,31 +306,39 @@ class ApiController extends Controller
         if(!is_null($checkIn) && !is_null($checkOut)) { 
             // Calculando extras
             if(!is_null($extras)) {
-                // Convertimos los extras para que siempre sean un array y que no existan repetidos.
+                // Convertimos los extras para que siempre sean array y que no existan repetidos:
                 $parsed_extras = is_array($extras) ? array_unique($extras) : array($extras);                
+                // Obtenemos la sumatoria de todos los precios de los extras elegidos
+                // se busca la coincidencia por el campo "extra_key"
                 $criteria = new CDbCriteria;
                 $criteria->select = 'id, SUM(price) AS totalExtras';                    
                 foreach ($parsed_extras as $extra) {
-                    //$criteria->addCondition('extra_key LIKE "'.$extra.'"');                            
+                    // OR condition:                    
                     $criteria->compare('extra_key', $extra, true, 'OR');
-                }                    
-                //for()
+                }
                 $roomExtras = Roomextras::model()->find($criteria);
                 $response["extras"] = $roomExtras->totalExtras;            
             }
 
+            // Formateamos las fechas de entrada y de salida. 
+            // Importante: la fecha de salida es el día que se va y no debe contarse ese día
+            // para hacer el calculo, por eso descontamos un día a la salida.
             $checkin = date('Y-m-d', strtotime($checkIn));   
             $checkout = date('Y-m-d', strtotime('-1 day', strtotime($checkOut)));
-            // Obtenemos los precios particulares por temporad para esta habitación                    
+
+            // Obtenemos los precios particulares por temporada para esta habitación                    
             $criteria = new CDbCriteria;
             $criteria->addCondition('room_id = '.$roomId);
-
-            $nights = $this->getDatesDiffDaysNum($checkin, $checkout) + 1;
 
             // fechas comprendidas entre la entrada y la salida (el día de salida no se cuenta)                        
             $criteria->addCondition("date_price BETWEEN '".$checkin."' AND '".$checkout."'"); 
             
+            // Nos dice el número de noches (tenemos en cuenta sumarle el día que le quitamos a la salida)
+            $nights = $this->getDatesDiffDaysNum($checkin, $checkout) + 1;
+
+            // Precios particulares (incrementos) por día:                    
             $seasonPrices = Seasonprices::model()->findAll($criteria);                                                           
+            // Los añadios a la respuesta para mostrarlos como información:
             $response["increments_per_day"] = array();                               
             if($seasonPrices){
                                         
@@ -354,8 +351,11 @@ class ApiController extends Controller
                     $total += floatval($roomMod->price) + floatval($increment);                            
                 }
             } else {
+                // si no hay precios especiales para ese día se coge el precio base y se multiplica
+                // por el número de noches.
                 $total += floatval($roomMod->price) * $nights;                            
             }
+            // finalmente se multiplica por el número de personas:
             $response["nights"] = $nights;                  
             $response["total"] = ($total + (floatval($response["extras"])*floatval($nights))) * $persons;
             $response["persons"] = $persons;
@@ -363,30 +363,28 @@ class ApiController extends Controller
         return $response;
     }
 
+    /* Envía la respuesta HTTP formateada     
+     */
     private function _sendResponse($status = 200, $body = '', $content_type = 'text/html; charset=utf-8') {
-        // set the status
+        // poniendo el estado:
         $status_header = 'HTTP/1.1 ' . $status . ' ' . $this->_getStatusCodeMessage($status);        
         header($status_header);
         // and the content type
         header('Content-type: ' . $content_type);
 
      
-        // pages with body are easy
+        // páginas que ya tengan un mensaje
         if($body != '')
         {
             // send the body
             $response = "{\"response\":\"".$body."\"}";
             echo ($body);
         }
-        // we need to create the body if none is passed
+        // Si no, se crea uno genérico:
         else
-        {
-            // create some body messages
+        {            
             $message = '';
-     
-            // this is purely optional, but makes the pages a little nicer to read
-            // for your users.  Since you won't likely send a lot of different status codes,
-            // this also shouldn't be too ponderous to maintain
+            // mensajes dependiendo del código del error:
             switch($status)
             {
                 case 401:
@@ -403,11 +401,11 @@ class ApiController extends Controller
                     break;
             }
      
-            // servers don't always have a signature turned on 
-            // (this is an apache directive "ServerSignature On")
+            
+            // apache directive "ServerSignature On"
             $signature = ($_SERVER['SERVER_SIGNATURE'] == '') ? $_SERVER['SERVER_SOFTWARE'] . ' Server at ' . $_SERVER['SERVER_NAME'] . ' Port ' . $_SERVER['SERVER_PORT'] : $_SERVER['SERVER_SIGNATURE'];
      
-            // this should be templated in a real-world solution
+            // Plantilla:
             $body = '
             <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
             <html>
@@ -425,13 +423,13 @@ class ApiController extends Controller
      
             echo $body;
         }
+        // finaliza el flujo
         Yii::app()->end();
     }
 
     private function _getStatusCodeMessage($status) {
-        // these could be stored in a .ini file and loaded
-        // via parse_ini_file()... however, this will suffice
-        // for an example
+        // Esto no debería ir aquí pero se pone por rapidez 
+        // para la prueba.
         $codes = Array(
             200 => 'OK',
             400 => 'Bad Request',
