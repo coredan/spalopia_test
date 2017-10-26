@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+
+body
+{
+	margin: 0;
+	padding: 0;
+	color: #555;
+	font-family: 'Roboto', sans-serif !important;
+	background: #EFEFEF;
+}
+
+input.mini-form {
+	max-width: 120px;
+}
+
+
+.navbar-brand>img {    
+    width: 80px;
+}
+
+.navbar {
+    min-height: 100px;        
+    margin-bottom: 0px;
+}
+
+.breadcrumbs {
+	margin-bottom: 6px;
+	padding: 6px 10px; 
+	background-color: #dcdcdc;
+}
+
+#sidebar {
+	background: #f8f8f8 url(/images/gray_fabric_bg.jpg) top center;
+	padding: 10px;
+}
+
+#sidebar h1 {
+	font-size: 18px;
+    color: #f8f8f8;
+    margin: -10px -10px 10px -10px;
+    background-color: #444;
+    padding: 10px !important; 
+}
+
+#sidebar label {
+	color: #4c8394;
+	font-weight: normal;
+}
+
+#sidebar .ui-datepicker-inline {
+	width: 100%;
+}
+
+.panel-title {
+	font-size: 14px;
+    color: #444;    
+}
+
+#hotels_list .panel-title{
+	font-size: 18px;
+}
+
+#hotels_list .panel-default>.panel-heading {
+	background-color: #b2c8e2;
+	border-color: #283546;
+	height: 40px;
+}
+
+hr {
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+
+.total-price {
+	color: #f558e0;
+    font-weight: bolder;
+    font-size: 21px;
+}
+
+.total {
+	font-weight: bold;
+    font-size: 18px;
+    text-align: right;
+}
+
+.tag {
+	font-weight: bold;
+    font-size: 14px;
+    text-align: right;
+    vertical-align: middle;
+}
+
+.prices div {
+	padding-left: 2px;
+	padding-right: 2px;
+}
+
+.extras label{
+	padding: 0 10px 0 0;
+}
+
+.reservation-code {
+	color: #f558e0 !important;
+    font-weight: bolder !important;
+    font-size: 21px !important;
+    margin-bottom: 20px !important;
+}
