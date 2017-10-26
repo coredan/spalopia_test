@@ -114,7 +114,7 @@ return array(
 		'db'=>array(
 			'connectionString' => 'mysql:host=localhost;dbname=webhotel',
 			'username' => 'root',				
-			'password' => 'H1dr0c3f4l0#',
+			'password' => 'xxxx',
 			//'password' => '.2016sqlfernando',
 			// 'connectionString' => 'mysql:host=db605922913.db.1and1.com;dbname=db605922913',
 			// 'username' => 'dbo605922913',				
